@@ -1,41 +1,57 @@
-﻿@using MudBlazor
+﻿@using BlazorEFApp.Domain.Entities
+@using BlazorEFApp.Domain.Validators
+@using FluentValidation
 @inject IUnitOfWork UnitOfWork
 @inject IValidator<Address> AddressValidator
 @inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">@(Address == null ? "Add Address" : "Edit Address")</MudText>
+        <MudText Typo="Typo.h6">@(Address.Id == 0 ? "Add Address" : "Edit Address")</MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="form" Model="@address" Validation="@(ValidateValue)" ValidationDelay="0">
+        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
             <MudGrid>
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="address.Street"
+                    <MudTextField T="string"
+                                  @bind-Value="Address.Street"
                                   Label="Street"
-                                  For="@(() => address.Street)"
-                                  Immediate="true" />
+                                  Required="true"
+                                  Validation="@(new Func<string, string>(ValidateStreet))"
+                                  RequiredError="Street is required!" />
                 </MudItem>
+
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="address.City"
+                    <MudTextField T="string"
+                                  @bind-Value="Address.City"
                                   Label="City"
-                                  For="@(() => address.City)"
-                                  Immediate="true" />
+                                  Required="true"
+                                  Validation="@(new Func<string, string>(ValidateCity))"
+                                  RequiredError="City is required!" />
                 </MudItem>
+
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="address.PostalCode"
+                    <MudTextField T="string"
+                                  @bind-Value="Address.PostalCode"
                                   Label="Postal Code"
-                                  For="@(() => address.PostalCode)"
-                                  Immediate="true" />
+                                  Required="true"
+                                  Validation="@(new Func<string, string>(ValidatePostalCode))"
+                                  RequiredError="Postal code is required!"
+                                  Placeholder="XX-XXX" />
                 </MudItem>
+
                 <MudItem xs="12">
-                    <MudSelect T="int" Label="Client Type"
-                               @bind-Value="address.ClientTypeId"
-                               For="@(() => address.ClientTypeId)"
-                               Immediate="true">
-                        @foreach (var clientType in clientTypes)
+                    <MudSelect T="int"
+                               Label="Client Type"
+                               @bind-Value="Address.ClientTypeId"
+                               Required="true"
+                               RequiredError="Client type is required!">
+                        @if (ClientTypes != null)
                         {
-                            <MudSelectItem Value="@clientType.Id">@clientType.Name</MudSelectItem>
+                            @foreach (var clientType in ClientTypes)
+                            {
+                                <MudSelectItem Value="@clientType.Id">@clientType.Name</MudSelectItem>
+                            }
                         }
                     </MudSelect>
                 </MudItem>
@@ -46,51 +62,71 @@
         <MudButton OnClick="Cancel">Cancel</MudButton>
         <MudButton Color="Color.Primary"
                    OnClick="Submit"
-                   Disabled="@(!form.IsValid)">Save</MudButton>
+                   Disabled="@(!success)">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
     [Parameter] public Address Address { get; set; }
+    [Parameter] public IEnumerable<ClientType> ClientTypes { get; set; }
 
+    private bool success;
+    private string[] errors = { };
     private MudForm form;
-    private Address address = new();
-    private IEnumerable<ClientType> clientTypes = new List<ClientType>();
-    private Dictionary<string, List<string>> errors = new();
 
     protected override async Task OnInitializedAsync()
     {
-        clientTypes = await UnitOfWork.ClientTypes.GetAllAsync();
-
-        if (Address != null)
+        try
         {
-            address = new Address
+            ClientTypes = await UnitOfWork.ClientTypes.GetAllAsync() ?? new List<ClientType>();
+
+            if (!ClientTypes.Any())
+            {
+                Snackbar.Add("No client types available. Please add client types first.", MudBlazor.Severity.Warning);
+                MudDialog.Cancel();
+                return;
+            }
+
+            Address ??= new Address
                 {
-                    Id = Address.Id,
-                    Street = Address.Street,
-                    City = Address.City,
-                    PostalCode = Address.PostalCode,
-                    ClientTypeId = Address.ClientTypeId
+                    ClientTypeId = ClientTypes.First().Id
                 };
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing form: {ex.Message}", MudBlazor.Severity.Error);
+            MudDialog.Cancel();
         }
     }
 
-    private async Task<bool> ValidateValue(object model)
+    private string ValidateStreet(string street)
     {
-        var validationResult = await AddressValidator.ValidateAsync((Address)model);
-        errors.Clear();
+        if (string.IsNullOrWhiteSpace(street))
+            return "Street is required!";
+        if (street.Length > 100)
+            return "Street cannot exceed 100 characters";
+        return null;
+    }
 
-        foreach (var error in validationResult.Errors)
-        {
-            if (!errors.ContainsKey(error.PropertyName))
-            {
-                errors[error.PropertyName] = new List<string>();
-            }
-            errors[error.PropertyName].Add(error.ErrorMessage);
-        }
+    private string ValidateCity(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+            return "City is required!";
+        if (city.Length > 50)
+            return "City cannot exceed 50 characters";
+        return null;
+    }
 
-        return validationResult.IsValid;
+    private string ValidatePostalCode(string postalCode)
+    {
+        if (string.IsNullOrWhiteSpace(postalCode))
+            return "Postal code is required!";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(postalCode, @"^\d{2}-\d{3}$"))
+            return "Invalid postal code format (XX-XXX)";
+        return null;
     }
 
     private async Task Submit()
@@ -101,18 +137,29 @@
         {
             try
             {
-                if (Address == null)
+                if (Address.Id == 0)
                 {
-                    await UnitOfWork.Addresses.AddAsync(address);
+                    await UnitOfWork.Addresses.AddAsync(Address);
                 }
                 else
                 {
-                    UnitOfWork.Addresses.Update(address);
+                    // Pobierz istniejący adres
+                    var existingAddress = await UnitOfWork.Addresses.GetByIdAsync(Address.Id);
+                    if (existingAddress != null)
+                    {
+                        // Zaktualizuj właściwości
+                        existingAddress.Street = Address.Street;
+                        existingAddress.City = Address.City;
+                        existingAddress.PostalCode = Address.PostalCode;
+                        existingAddress.ClientTypeId = Address.ClientTypeId;
+
+                        UnitOfWork.Addresses.Update(existingAddress);
+                    }
                 }
 
                 await UnitOfWork.SaveChangesAsync();
                 MudDialog.Close(DialogResult.Ok(true));
-                Snackbar.Add($"Address {(Address == null ? "added" : "updated")} successfully", MudBlazor.Severity.Success);
+                Snackbar.Add($"Address {(Address.Id == 0 ? "added" : "updated")} successfully",MudBlazor.Severity.Success);
             }
             catch (Exception ex)
             {
@@ -120,6 +167,7 @@
             }
         }
     }
+
 
     private void Cancel() => MudDialog.Cancel();
 }
