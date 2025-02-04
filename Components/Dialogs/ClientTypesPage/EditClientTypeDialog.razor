@@ -1,0 +1,42 @@
+﻿@using MudBlazor
+@inject IUnitOfWork UnitOfWork
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="clientType.Name"
+                      Label="Name"
+                      Required="true"
+                      RequiredError="Name is required" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@string.IsNullOrWhiteSpace(clientType.Name)">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public ClientType ClientType { get; set; }
+
+    private ClientType clientType = new();
+
+    protected override void OnInitialized()
+    {
+        clientType = new ClientType
+            {
+                Id = ClientType.Id,
+                Name = ClientType.Name
+            };
+    }
+
+    private async Task Submit()
+    {
+        UnitOfWork.ClientTypes.Update(clientType);
+        await UnitOfWork.SaveChangesAsync();
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,147 @@
+﻿@page "/"
+@using BlazorEFApp.Infrastructure.Repositories
+@using MudBlazor
+@inject IUnitOfWork UnitOfWork
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IAddressRepository AddressRepository
+
+<MudContainer>
+    <MudTable Items="@addresses" Dense="@dense" Hover="@hover" Bordered="@bordered"
+    Striped="@striped" Filter="new Func<Address,bool>(FilterFunc)"
+    @bind-SelectedItem="selectedItem">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Addresses</MudText>
+            <MudSpacer />
+            <MudButton Color="Color.Primary"
+            StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => OpenAddEditDialog())">Add Address</MudButton>
+            <MudTextField @bind-Value="searchString" Placeholder="Search"
+            Adornment="Adornment.Start"
+            AdornmentIcon="@Icons.Material.Filled.Search"
+            IconSize="Size.Medium" Class="mt-0 ml-4">
+            </MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Street</MudTh>
+            <MudTh>City</MudTh>
+            <MudTh>Postal Code</MudTh>
+            <MudTh>Client Type</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Street">@context.Street</MudTd>
+            <MudTd DataLabel="City">@context.City</MudTd>
+            <MudTd DataLabel="Postal Code">@context.PostalCode</MudTd>
+            <MudTd DataLabel="Client Type">@context.ClientType?.Name</MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                Color="Color.Primary"
+                Size="Size.Small"
+                               OnClick="@(() => OpenAddEditDialog(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                Color="Color.Error"
+                Size="Size.Small"
+                OnClick="@(() => OpenDeleteDialog(context))" />
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50 }" />
+        </PagerContent>
+    </MudTable>
+
+    <div class="d-flex flex-wrap mt-4">
+        <MudSwitch @bind-Value="hover" Color="Color.Primary">Hover</MudSwitch>
+        <MudSwitch @bind-Value="dense" Color="Color.Secondary">Dense</MudSwitch>
+        <MudSwitch @bind-Value="striped" Color="Color.Tertiary">Striped</MudSwitch>
+        <MudSwitch @bind-Value="bordered" Color="Color.Warning">Bordered</MudSwitch>
+    </div>
+</MudContainer>
+
+@code {
+    private bool dense = false;
+    private bool hover = true;
+    private bool striped = false;
+    private bool bordered = false;
+    private string searchString = "";
+    private Address selectedItem = null;
+    private IEnumerable<Address> addresses = new List<Address>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+
+        var ssdadsa = addresses;
+        var sdasads = 5;
+
+    }
+
+    private async Task LoadData()
+    {
+        addresses = await AddressRepository.GetAllWithClientTypesAsync();
+   
+    }
+
+    private async Task OpenAddEditDialog(Address address = null)
+    {
+        var parameters = new DialogParameters();
+        if (address != null)
+        {
+            parameters.Add(nameof(Address), address);
+        }
+
+        var dialog = await DialogService.ShowAsync<AddressDialog>(
+            address == null ? "Add Address" : "Edit Address",
+            parameters);
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenDeleteDialog(Address address)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContentText", $"Are you sure you want to delete address '{address.Street}, {address.City}'?" },
+            { "ButtonText", "Delete" },
+            { "Color", Color.Error }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteDialog>("Delete", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await UnitOfWork.Addresses.DeleteAsync(address.Id);
+            await UnitOfWork.SaveChangesAsync();
+            await LoadData();
+            Snackbar.Add("Address has been deleted", MudBlazor.Severity.Success);
+        }
+    }
+
+    private bool FilterFunc(Address address)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        if (address.Street.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (address.City.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (address.PostalCode.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (address.ClientType?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            return true;
+
+        return false;
+    }
+}

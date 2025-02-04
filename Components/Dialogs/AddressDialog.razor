@@ -1,0 +1,125 @@
+﻿@using MudBlazor
+@inject IUnitOfWork UnitOfWork
+@inject IValidator<Address> AddressValidator
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Address == null ? "Add Address" : "Edit Address")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form" Model="@address" Validation="@(ValidateValue)" ValidationDelay="0">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="address.Street"
+                                  Label="Street"
+                                  For="@(() => address.Street)"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="address.City"
+                                  Label="City"
+                                  For="@(() => address.City)"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="address.PostalCode"
+                                  Label="Postal Code"
+                                  For="@(() => address.PostalCode)"
+                                  Immediate="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="int" Label="Client Type"
+                               @bind-Value="address.ClientTypeId"
+                               For="@(() => address.ClientTypeId)"
+                               Immediate="true">
+                        @foreach (var clientType in clientTypes)
+                        {
+                            <MudSelectItem Value="@clientType.Id">@clientType.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   OnClick="Submit"
+                   Disabled="@(!form.IsValid)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public Address Address { get; set; }
+
+    private MudForm form;
+    private Address address = new();
+    private IEnumerable<ClientType> clientTypes = new List<ClientType>();
+    private Dictionary<string, List<string>> errors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        clientTypes = await UnitOfWork.ClientTypes.GetAllAsync();
+
+        if (Address != null)
+        {
+            address = new Address
+                {
+                    Id = Address.Id,
+                    Street = Address.Street,
+                    City = Address.City,
+                    PostalCode = Address.PostalCode,
+                    ClientTypeId = Address.ClientTypeId
+                };
+        }
+    }
+
+    private async Task<bool> ValidateValue(object model)
+    {
+        var validationResult = await AddressValidator.ValidateAsync((Address)model);
+        errors.Clear();
+
+        foreach (var error in validationResult.Errors)
+        {
+            if (!errors.ContainsKey(error.PropertyName))
+            {
+                errors[error.PropertyName] = new List<string>();
+            }
+            errors[error.PropertyName].Add(error.ErrorMessage);
+        }
+
+        return validationResult.IsValid;
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            try
+            {
+                if (Address == null)
+                {
+                    await UnitOfWork.Addresses.AddAsync(address);
+                }
+                else
+                {
+                    UnitOfWork.Addresses.Update(address);
+                }
+
+                await UnitOfWork.SaveChangesAsync();
+                MudDialog.Close(DialogResult.Ok(true));
+                Snackbar.Add($"Address {(Address == null ? "added" : "updated")} successfully", MudBlazor.Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving address: {ex.Message}", MudBlazor.Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
