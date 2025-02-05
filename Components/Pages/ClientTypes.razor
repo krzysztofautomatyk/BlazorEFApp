@@ -1,4 +1,5 @@
 ﻿@page "/clienttypes"
+@using Microsoft.EntityFrameworkCore;
 
 
 @inject IUnitOfWork UnitOfWork
@@ -36,11 +37,23 @@
                                Color="Color.Primary"
                                Size="Size.Small"
                                OnClick="@(() => OpenEditDialog(context))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                               Color="Color.Error"
-                               Size="Size.Small"
-                               OnClick="@(() => OpenDeleteDialog(context))" />
+
+                @if (context.Addresses == null || context.Addresses.Count == 0)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OpenDeleteDialog(context))" />
+                }
+                else
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   Disabled="true" />
+                }
             </MudTd>
+
         </RowTemplate>
         <PagerContent>
             <MudTablePager PageSizeOptions="new int[] { 5, 10, 25, 50 }" />
@@ -77,7 +90,11 @@
 
     private async Task LoadData()
     {
-        clientTypes = (await UnitOfWork.ClientTypes.GetAllAsync()).ToList();
+        // clientTypes = (await UnitOfWork.ClientTypes.GetAllAsync()).ToList
+    
+        clientTypes = (await UnitOfWork.ClientTypes.GetAllWithIncludeAsync(c => c.Addresses)).ToList();
+    
+
     }
 
     private async Task OpenAddDialog()
@@ -112,23 +129,34 @@
     private async Task OpenDeleteDialog(ClientType clientType)
     {
         var parameters = new DialogParameters
-        {
-            { "ContentText", $"Are you sure you want to delete client type '{clientType.Name}'?" },
-            { "ButtonText", "Delete" },
-            { "Color", Color.Error }
-        };
+    {
+        { "ContentText", $"Are you sure you want to delete client type '{clientType.Name}'?" },
+        { "ButtonText", "Delete" },
+        { "Color", Color.Error }
+    };
 
         var dialog = await DialogService.ShowAsync<DeleteDialog>("Delete", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
         {
-            await UnitOfWork.ClientTypes.DeleteAsync(clientType.Id);
-            await UnitOfWork.SaveChangesAsync();
-            await LoadData();
-            Snackbar.Add("Client type has been deleted", MudBlazor.Severity.Success);
+            try
+            {
+                await UnitOfWork.ClientTypes.DeleteAsync(clientType.Id);
+                await UnitOfWork.SaveChangesAsync();
+                Snackbar.Add("Client type has been deleted", MudBlazor.Severity.Success);
+            }
+            catch (DbUpdateException ex)
+            {         
+                Snackbar.Add("Error: Cannot delete because it has used in Addresses table.", MudBlazor.Severity.Error);
+            }
+            finally
+            {
+                await LoadData(); 
+            }
         }
     }
+
 
     private bool FilterFunc(ClientType clientType)
     {

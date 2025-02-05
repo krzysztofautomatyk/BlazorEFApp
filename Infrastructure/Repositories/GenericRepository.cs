@@ -49,10 +49,21 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public async Task<IEnumerable<T>> GetFilteredAsync(
         Expression<Func<T, bool>> predicate,
         int page = 1,
-        int pageSize = 10) =>
+        int pageSize = 20) =>
         await _dbSet.AsNoTracking()
                     .Where(predicate)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
+
+    public async Task<IEnumerable<T>> GetAllWithIncludeAsync(params Expression<Func<T, object>>[] includeProperties)
+    {
+        IQueryable<T> query = _dbSet;
+        foreach (var includeProperty in includeProperties)
+        {
+            query = query.Include(includeProperty);
+        }
+        return await query.AsNoTracking().ToListAsync();
+    }
+
 }

@@ -10,5 +10,7 @@ public interface IGenericRepository<T> where T : class
     void Update(T entity);   
     Task DeleteAsync(int id);
     Task<IEnumerable<T>> GetPagedAsync(int page, int pageSize);
-    Task<IEnumerable<T>> GetFilteredAsync(Expression<Func<T, bool>> predicate, int page = 1, int pageSize = 10);
+    Task<IEnumerable<T>> GetFilteredAsync(Expression<Func<T, bool>> predicate, int page = 1, int pageSize = 20);
+    Task<IEnumerable<T>> GetAllWithIncludeAsync(params Expression<Func<T, object>>[] includeProperties);
+
 }
