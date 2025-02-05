@@ -8,6 +8,13 @@
 
 A modern, responsive Blazor Server application demonstrating CRUD operations using Entity Framework Core, MudBlazor UI components, and clean architecture principles.
 
+
+![Page](./Images/BlazorEFApp.gif)
+
+
+![EF](./Images/BlazorEFApp.png)
+
+
 ## ✨ Key Features
 
 - **📊 Client Type Management**
