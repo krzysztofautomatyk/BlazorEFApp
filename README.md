@@ -1,4 +1,10 @@
 # 🚀 Blazor CRUD Application with EF Core and MudBlazor
+![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue?style=flat-square)
+![Blazor Server](https://img.shields.io/badge/Blazor-Server-blue?style=flat-square)
+![EF Core](https://img.shields.io/badge/EF%20Core-9.0.1-blue?style=flat-square)
+![SQLite](https://img.shields.io/badge/SQLite-SQLite-blue?style=flat-square)
+![MudBlazor](https://img.shields.io/badge/MudBlazor-8.x-brightgreen?style=flat-square)
+![FluentValidation](https://img.shields.io/badge/FluentValidation-11.11.0-yellow?style=flat-square)
 
 A modern, responsive Blazor Server application demonstrating CRUD operations using Entity Framework Core, MudBlazor UI components, and clean architecture principles.
 
