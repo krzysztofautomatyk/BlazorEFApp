@@ -46,8 +46,6 @@
 
     private async Task Submit()
     {
-        await form.Validate();
-
         if (form.IsValid)
         {
             try
@@ -55,14 +53,17 @@
                 if (ClientType.Id == 0)
                 {
                     await UnitOfWork.ClientTypes.AddAsync(ClientType);
-                    Snackbar.Add("Client type added successfully", MudBlazor.Severity.Success);
                 }
                 else
                 {
-                    UnitOfWork.ClientTypes.Update(ClientType);
-                    Snackbar.Add("Client type updated successfully", MudBlazor.Severity.Success);
+                    var existingClientType = await UnitOfWork.ClientTypes.GetByIdAsync(ClientType.Id);
+                    if (existingClientType != null)
+                    {
+                        existingClientType.Name = ClientType.Name;
+                        existingClientType.IsAvailable = ClientType.IsAvailable;
+                        UnitOfWork.ClientTypes.Update(existingClientType);
+                    }
                 }
-
                 await UnitOfWork.SaveChangesAsync();
                 MudDialog.Close(DialogResult.Ok(true));
             }
@@ -72,6 +73,7 @@
             }
         }
     }
+
 
     private void Cancel() => MudDialog.Cancel();
 }
