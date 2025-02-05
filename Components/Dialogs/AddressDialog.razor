@@ -41,19 +41,13 @@
                 </MudItem>
 
                 <MudItem xs="12">
-                    <MudSelect T="int"
-                               Label="Client Type"
-                               @bind-Value="Address.ClientTypeId"
-                               Required="true"
-                               RequiredError="Client type is required!">
-                        @if (ClientTypes != null)
+                    <MudSelect T="int" @bind-Value="Address.ClientTypeId" Label="Client Type">
+                        @foreach (var clientType in availableClientTypes)
                         {
-                            @foreach (var clientType in ClientTypes)
-                            {
-                                <MudSelectItem Value="@clientType.Id">@clientType.Name</MudSelectItem>
-                            }
+                            <MudSelectItem Value="@clientType.Id">@clientType.Name</MudSelectItem>
                         }
                     </MudSelect>
+
                 </MudItem>
             </MudGrid>
         </MudForm>
@@ -71,6 +65,8 @@
     [Parameter] public Address Address { get; set; }
     [Parameter] public IEnumerable<ClientType> ClientTypes { get; set; }
 
+    private List<ClientType> availableClientTypes = new();
+
     private bool success;
     private string[] errors = { };
     private MudForm form;
@@ -79,6 +75,7 @@
     {
         try
         {
+            await LoadAvailableClientTypes();
             ClientTypes = await UnitOfWork.ClientTypes.GetAllAsync() ?? new List<ClientType>();
 
             if (!ClientTypes.Any())
@@ -100,6 +97,13 @@
             Snackbar.Add($"Error initializing form: {ex.Message}", MudBlazor.Severity.Error);
             MudDialog.Cancel();
         }
+    }
+
+    private async Task LoadAvailableClientTypes()
+    {
+        availableClientTypes = (await UnitOfWork.ClientTypes.GetAllAsync())
+            .Where(ct => ct.IsAvailable)
+            .ToList();
     }
 
     private string ValidateStreet(string street)

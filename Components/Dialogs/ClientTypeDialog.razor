@@ -1,0 +1,77 @@
+﻿@using BlazorEFApp.Domain.Entities
+@using BlazorEFApp.Domain.Validators
+@using FluentValidation
+@inject IUnitOfWork UnitOfWork
+@inject IValidator<ClientType> ClientTypeValidator
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(ClientType.Id == 0 ? "Add Client Type" : "Edit Client Type")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  @bind-Value="ClientType.Name"
+                                  Label="Name"
+                                  Required="true"
+                                  RequiredError="Name is required!" />
+                </MudItem>
+                 <MudItem xs="12">
+                    <MudCheckBox @bind-Value="@ClientType.IsAvailable" Label="Available" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!success)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public ClientType ClientType { get; set; }
+
+    private bool success;
+    private string[] errors = { };
+    private MudForm form;
+
+    protected override void OnInitialized()
+    {
+        ClientType ??= new ClientType();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            try
+            {
+                if (ClientType.Id == 0)
+                {
+                    await UnitOfWork.ClientTypes.AddAsync(ClientType);
+                    Snackbar.Add("Client type added successfully", MudBlazor.Severity.Success);
+                }
+                else
+                {
+                    UnitOfWork.ClientTypes.Update(ClientType);
+                    Snackbar.Add("Client type updated successfully", MudBlazor.Severity.Success);
+                }
+
+                await UnitOfWork.SaveChangesAsync();
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error saving client type: {ex.Message}", MudBlazor.Severity.Error);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

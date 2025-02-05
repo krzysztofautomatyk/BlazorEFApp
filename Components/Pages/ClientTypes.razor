@@ -15,7 +15,7 @@
             <MudSpacer />
             <MudButton Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="OpenAddDialog">Add Client Type</MudButton>
+                       OnClick="() => OpenClientTypeDialog()">Add Client Type</MudButton>
             <MudTextField @bind-Value="searchString" Placeholder="Search"
                           Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search"
@@ -26,17 +26,34 @@
             <MudTh>Id</MudTh>
             <MudTh>Name</MudTh>
             <MudTh>Address Count</MudTh>
+            <MudTh>Available</MudTh>
             <MudTh>Actions</MudTh>
+
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">@context.Id</MudTd>
             <MudTd DataLabel="Name">@context.Name</MudTd>
             <MudTd DataLabel="Address Count">@(context.Addresses?.Count ?? 0)</MudTd>
+            
+        <MudTd DataLabel="Available">
+            <MudChipSet T="Color">
+
+            <MudChip Color="@(context.IsAvailable ? Color.Success : Color.Error)"
+                     Variant="Variant.Filled"
+                     Size="Size.Small">
+                @(context.IsAvailable ? "Available" : "Not Available")
+            </MudChip>
+            </MudChipSet>
+        </MudTd>
+ 
+
+
+
             <MudTd>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                Color="Color.Primary"
                                Size="Size.Small"
-                               OnClick="@(() => OpenEditDialog(context))" />
+                               OnClick="() => OpenClientTypeDialog(context)" />
 
                 @if (context.Addresses == null || context.Addresses.Count == 0)
                 {
@@ -50,13 +67,14 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Color="Color.Error"
                                    Size="Size.Small"
-                                   Disabled="true" />
+                                   Disabled="true"
+                                   Title="Cannot delete client type with associated addresses" />
                 }
             </MudTd>
 
         </RowTemplate>
         <PagerContent>
-            <MudTablePager PageSizeOptions="new int[] { 5, 10, 25, 50 }" />
+            <MudTablePager PageSizeOptions="new int[] {   10, 25, 50 }" />
         </PagerContent>
     </MudTable>
 
@@ -90,41 +108,33 @@
 
     private async Task LoadData()
     {
-        // clientTypes = (await UnitOfWork.ClientTypes.GetAllAsync()).ToList
-    
-        clientTypes = (await UnitOfWork.ClientTypes.GetAllWithIncludeAsync(c => c.Addresses)).ToList();
-    
-
-    }
-
-    private async Task OpenAddDialog()
-    {
-        var dialog = await DialogService.ShowAsync<AddClientTypeDialog>("Add Client Type");
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
+        try
         {
-            await LoadData();
-            Snackbar.Add("Client type has been added", MudBlazor.Severity.Success);
+            clientTypes = (await UnitOfWork.ClientTypes.GetAllWithIncludeAsync(c => c.Addresses)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", MudBlazor.Severity.Error);
         }
     }
 
-    private async Task OpenEditDialog(ClientType clientType)
+
+    private async Task OpenClientTypeDialog(ClientType clientType = null)
     {
         var parameters = new DialogParameters
         {
-            { "ClientType", clientType }
+            { "ClientType", clientType ?? new ClientType() }
         };
 
-        var dialog = await DialogService.ShowAsync<EditClientTypeDialog>("Edit Client Type", parameters);
+        var dialog = await DialogService.ShowAsync<ClientTypeDialog>("Client Type", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
         {
             await LoadData();
-            Snackbar.Add("Client type has been updated", MudBlazor.Severity.Success);
         }
     }
+
 
     private async Task OpenDeleteDialog(ClientType clientType)
     {
@@ -146,16 +156,17 @@
                 await UnitOfWork.SaveChangesAsync();
                 Snackbar.Add("Client type has been deleted", MudBlazor.Severity.Success);
             }
-            catch (DbUpdateException ex)
-            {         
-                Snackbar.Add("Error: Cannot delete because it has used in Addresses table.", MudBlazor.Severity.Error);
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting client type: {ex.Message}", MudBlazor.Severity.Error);
             }
             finally
             {
-                await LoadData(); 
+                await LoadData();
             }
         }
     }
+
 
 
     private bool FilterFunc(ClientType clientType)
@@ -167,6 +178,11 @@
             return true;
 
         if (clientType.Id.ToString().Contains(searchString))
+            return true;
+
+        if ("available".Contains(searchString, StringComparison.OrdinalIgnoreCase) && clientType.IsAvailable)
+            return true;
+        if ("not available".Contains(searchString, StringComparison.OrdinalIgnoreCase) && !clientType.IsAvailable)
             return true;
 
         return false;

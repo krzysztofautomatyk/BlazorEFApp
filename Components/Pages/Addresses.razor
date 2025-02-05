@@ -107,23 +107,34 @@
     private async Task OpenDeleteDialog(Address address)
     {
         var parameters = new DialogParameters
-        {
-            { "ContentText", $"Are you sure you want to delete address '{address.Street}, {address.City}'?" },
-            { "ButtonText", "Delete" },
-            { "Color", Color.Error }
-        };
+    {
+        { "ContentText", $"Are you sure you want to delete address '{address.Street}, {address.City}'?" },
+        { "ButtonText", "Delete" },
+        { "Color", Color.Error }
+    };
 
         var dialog = await DialogService.ShowAsync<DeleteDialog>("Delete", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
         {
-            await UnitOfWork.Addresses.DeleteAsync(address.Id);
-            await UnitOfWork.SaveChangesAsync();
-            await LoadData();
-            Snackbar.Add("Address has been deleted", MudBlazor.Severity.Success);
+            try
+            {
+                await UnitOfWork.Addresses.DeleteAsync(address.Id);
+                await UnitOfWork.SaveChangesAsync();
+                Snackbar.Add("Address has been deleted", MudBlazor.Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting address: {ex.Message}", MudBlazor.Severity.Error);
+            }
+            finally
+            {
+                await LoadData();
+            }
         }
     }
+
 
     private bool FilterFunc(Address address)
     {
