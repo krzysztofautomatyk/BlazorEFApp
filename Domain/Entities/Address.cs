@@ -9,13 +9,11 @@ public class Address
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
-    [Required, MaxLength(100)]
+    [Required]
     public string Street { get; set; } = string.Empty;
-
-    [Required, MaxLength(50)]
+    [Required]
     public string City { get; set; } = string.Empty;
-
-    [Required, MaxLength(10)]
+    [Required]
     public string PostalCode { get; set; } = string.Empty;
 
     [ForeignKey(nameof(ClientType))]
@@ -23,3 +21,4 @@ public class Address
 
     public ClientType? ClientType { get; set; }
 }
+

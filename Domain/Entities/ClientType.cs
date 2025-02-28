@@ -9,11 +9,13 @@ public class ClientType
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
-    [Required, MaxLength(100)]
+    [Required]
     public string Name { get; set; } = string.Empty;
-    
+
+    [Required]
     public bool IsAvailable { get; set; } = true;
 
     public ICollection<Address>? Addresses { get; set; }
 
 }
+
