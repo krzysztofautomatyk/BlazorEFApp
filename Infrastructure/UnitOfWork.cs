@@ -25,14 +25,29 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<int> SaveChangesAsync() => await _context!.SaveChangesAsync();
 
-    public async Task BeginTransactionAsync() =>
-        await _context.BeginTransactionAsync();
+    public async Task BeginTransactionAsync()
+    {
+        if (_context != null)
+        {
+            await _context.BeginTransactionAsync();
+        }
+    }
 
-    public async Task CommitTransactionAsync() =>
-        await _context.CommitTransactionAsync();
+    public async Task CommitTransactionAsync()
+    {
+        if (_context != null)
+        {
+            await _context.CommitTransactionAsync();
+        }
+    }
 
-    public async Task RollbackTransactionAsync() =>
-        await _context.RollbackTransactionAsync();
+    public async Task RollbackTransactionAsync()
+    {
+        if (_context != null)
+        {
+            await _context.RollbackTransactionAsync();
+        }
+    }
 
     public void Dispose() => _context?.Dispose();
 }
